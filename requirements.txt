@@ -10,3 +10,4 @@ audioread==3.0.1
 assemblyai==0.38.0
 gunicorn
 pydub
+ffprobe
