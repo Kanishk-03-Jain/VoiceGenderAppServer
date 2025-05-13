@@ -1,18 +1,16 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
-from werkzeug.utils import secure_filename
-import os
+from pydub import AudioSegment
+import requests
 from utils import create_model, extract_feature, is_valid_wav, transcribe_audio, verify_transcription
+import io
 
+TEXT = "Hi this is an example text for getting similarity score."
 app = Flask(__name__)
 CORS(app)
 model = create_model()
 model.load_weights("models/model.h5")
 
-UPLOAD_FOLDER = "uploads"
-TEXT = "Hi this is an example text for getting similarity score."
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 #Home page
 @app.route("/", methods=["GET"])
@@ -25,25 +23,24 @@ def display_text():
 
 @app.route("/transcribe", methods=["POST"])
 def transcribe_and_verify():
-    print(request, request.files)
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-
-    file = request.files['file']
-    # If file name is empty
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-
     try:
-        file.save(file_path)
+        data = request.get_json()
+        print(data)
 
-        if not is_valid_wav(file_path):
-            return jsonify({'error': 'Invalid WAV file. Please upload a valid 16-bit WAV audio file.'}), 400
+        if not data or "url" not in data:
+            return jsonify({'error': 'No URL provided'}), 400
 
-        transctiption = transcribe_audio(file_path)
+        response = requests.get(data["url"])
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to download audio from URL'}), 400
+
+        audio_bytes = io.BytesIO(response.content)
+        audio = AudioSegment.from_file(audio_bytes)
+        wav_buffer = io.BytesIO()
+        audio.export(wav_buffer, format="wav")
+        wav_buffer.seek(0)
+
+        transctiption = transcribe_audio(wav_buffer)
         if transctiption is None:
             return jsonify({'error': 'Failed to transcribe audio.'}), 400
         
@@ -56,34 +53,27 @@ def transcribe_and_verify():
         print(f"Prediction Error: {str(e)}")
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
 
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-
 #/predict post request
 @app.route("/predict", methods=["POST"])
 def predict():
-    # If no file is attached to the request
-    print(request, request.files)
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-
-    file = request.files['file']
-    # If file name is empty
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-
     try:
-        file.save(file_path)
+        data = request.get_json()
+        print(data)
 
-        if not is_valid_wav(file_path):
-            return jsonify({'error': 'Invalid WAV file. Please upload a valid 16-bit WAV audio file.'}), 400
+        if not data or "url" not in data:
+            return jsonify({'error': 'No URL provided'}), 400
 
-        features = extract_feature(file_path, mel=True).reshape(1, -1)
+        response = requests.get(data["url"])
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to download audio from URL'}), 400
+
+        audio_bytes = io.BytesIO(response.content)
+        audio = AudioSegment.from_file(audio_bytes)
+        wav_buffer = io.BytesIO()
+        audio.export(wav_buffer, format="wav")
+        wav_buffer.seek(0)
+
+        features = extract_feature(wav_buffer, mel=True).reshape(1, -1)
         if features is None:
             return jsonify({'error': 'Failed to extract features from audio.'}), 400
 
@@ -102,10 +92,6 @@ def predict():
     except Exception as e:
         print(f"Prediction Error: {str(e)}")
         return jsonify({'error': f'Error processing request: {str(e)}'}), 500
-
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -4,17 +4,18 @@ import librosa
 import wave
 import difflib
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.layers import Dense, Dropout
 
 import assemblyai as aai
 # from dotenv import load_dotenv
 # load_dotenv()
 aai.settings.api_key = os.environ.get("ASSEMBLYAI_API_KEY")
 
-def transcribe_audio(file_path):
-    """Transcribe audio using AssemblyAI API"""
+def transcribe_audio(wav_buffer):
+    """Transcribe audio from BytesIO using AssemblyAI API"""
+    wav_buffer.seek(0)  # Ensure the buffer is at the beginning
     transcriber = aai.Transcriber()
-    transcript = transcriber.transcribe(file_path)
+    transcript = transcriber.transcribe(wav_buffer)
     return transcript.text
 
 def verify_transcription(user_transcription, original_text):
@@ -44,9 +45,9 @@ def create_model(vector_length=128):
     model.compile(loss="binary_crossentropy", metrics=["accuracy"], optimizer="adam")
     return model
 
-def extract_feature(file_name, **kwargs):
+def extract_feature(file, **kwargs):
     """
-    Extract feature from audio file `file_name`
+    Extract feature from audio file `file`
         Features supported:
             - MFCC (mfcc) (Mel Frequency Cepstral Coefficients) {short-term power spectrum of a sound}
             - Chroma (chroma) {12 different pitch classes}
@@ -61,7 +62,7 @@ def extract_feature(file_name, **kwargs):
     mel = kwargs.get("mel")
     contrast = kwargs.get("contrast")
     tonnetz = kwargs.get("tonnetz")
-    X, sample_rate = librosa.core.load(file_name)
+    X, sample_rate = librosa.load(file, sr=None)
     if chroma or contrast:
         stft = np.abs(librosa.stft(X))  # STFT (Short-Time Fourier Transform) breaks the audio signal into short overlapping windows and computes the Fourier Transform (frequency spectrum) for each window.
     result = np.array([])
