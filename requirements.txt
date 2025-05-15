@@ -11,3 +11,14 @@ assemblyai==0.38.0
 gunicorn
 pydub
 ffprobe
+diffusers
+transformers
+requests
+python-dotenv
+torch
+Pillow
+accelerate 
+safetensors 
+scipy
+huggingface-hub
+tokenizers
