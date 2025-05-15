@@ -176,7 +176,6 @@ def generate_image():
         ).images[0]
 
         # Return image as response
-        gen_image = image
         img_io = BytesIO()
         gen_image.save(img_io, 'PNG')
         img_io.seek(0)
