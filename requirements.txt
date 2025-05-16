@@ -11,14 +11,6 @@ assemblyai
 gunicorn
 pydub==0.25.1
 ffprobe
-diffusers==0.33.1
-transformers==4.51.3
-requests==2.32.3
+requests
+ffmpeg-python
 python-dotenv
-torch
-Pillow==11.1.0
-accelerate==1.5.2 
-safetensors==0.5.3 
-scipy==1.15.3
-huggingface-hub==0.31.1
-tokenizers==0.21.1
